@@ -1,0 +1,28 @@
+#!/bin/bash
+sed -i '/^# sftp configuration below this line/q' /etc/ssh/sshd_config
+echo "# sftp configuration below this line" >> /etc/ssh/sshd_config
+
+mkdir -p /var/sftp
+
+cat groups.txt | while read groupname ; do
+  groupadd $groupname
+  xfs_quota -x -c "limit -g bsoft=10000m bhard=12000m $groupname" /
+  mkdir -p /var/sftp/$groupname
+  mkdir -p /var/sftp/$groupname/files
+  chgrp $groupname /var/sftp/$groupname/files
+  chmod g+s /var/sftp/$groupname/files
+  chmod g+w /var/sftp/$groupname/files
+
+  cat >> /etc/ssh/sshd_config <<EOF
+
+# config for $groupname
+Match Group $groupname
+ForceCommand internal-sftp
+PasswordAuthentication yes
+ChrootDirectory /var/sftp/$groupname
+PermitTunnel no
+AllowAgentForwarding no
+AllowTcpForwarding no
+X11Forwarding no
+EOF
+done
